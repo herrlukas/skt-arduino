@@ -4,14 +4,6 @@
 #define ENCODER_A_PIN 2
 #define ENCODER_B_PIN 3
 #define SWITCH_PIN 4
-#define STATE_LOCKED 0
-#define STATE_TURN_CW_START 1
-#define STATE_TURN_CW_MIDDLE 2
-#define STATE_TURN_CW_END 3
-#define STATE_TURN_CCW_START 4
-#define STATE_TURN_CCW_MIDDLE 5
-#define STATE_TURN_CCW_END 6
-#define STATE_UNDECIDED 7
 
 uint8_t encoderState = 0;
 uint8_t switchState = 0;
@@ -27,24 +19,6 @@ uint8_t pedalState = 0;
 #define MOTOR_ACCELERATION 20000
 
 AccelStepper stepper(1,MOTOR_STEP_PIN,MOTOR_DIRECTION_PIN);
-
-void setup()
-{
-  Serial.begin(115200);
-  pinMode(ENCODER_A_PIN, INPUT);
-  pinMode(ENCODER_B_PIN, INPUT);
-  pinMode(SWITCH_PIN, INPUT);
-  pinMode(PEDAL_PIN, INPUT);
-
-  pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
-  pinMode(MOTOR_ENABLE_PIN, OUTPUT);
-  pinMode(MOTOR_STEP_PIN, OUTPUT);
-
-  stepper.setEnablePin(MOTOR_ENABLE_PIN);
-  stepper.setMaxSpeed(MOTOR_MAX_SPEED);
-  stepper.setAcceleration(MOTOR_ACCELERATION);
-  stepper.enableOutputs();
-}
 
 void stepCW()
 {
@@ -78,50 +52,15 @@ void pedalPress(){
 }
 
 void readEncoder() {
-  uint8_t a = digitalRead(ENCODER_A_PIN);
-  uint8_t b = digitalRead(ENCODER_B_PIN);
+  if(digitalRead(ENCODER_A_PIN) != digitalRead(ENCODER_B_PIN))
+    stepCW();
+  else
+    stepCCW();  
+}
+
+void readSwitch(){
   uint8_t s = digitalRead(SWITCH_PIN);
-  switch (encoderState) {
-    case STATE_LOCKED: 
-      if (a && b)       { encoderState = STATE_UNDECIDED; }
-      else if (!a && b) { encoderState = STATE_TURN_CCW_START; }
-      else if (a && !b) { encoderState = STATE_TURN_CW_START; }
-      else              { encoderState = STATE_LOCKED; }; 
-      break;
-    case STATE_TURN_CW_START: 
-      if (a && b)       { encoderState = STATE_TURN_CW_MIDDLE; }
-      else if (!a && b) { encoderState = STATE_TURN_CW_END; }
-      else if (a && !b) { encoderState = STATE_TURN_CW_START; }
-      else              { encoderState = STATE_LOCKED; }; 
-      break;
-    case STATE_TURN_CW_MIDDLE:
-    case STATE_TURN_CW_END:
-      if (a && b)       { encoderState = STATE_TURN_CW_MIDDLE; }
-      else if (!a && b) { encoderState = STATE_TURN_CW_END; }
-      else if (a && !b) { encoderState = STATE_TURN_CW_START; }
-      else              { encoderState = STATE_LOCKED; stepCW(); }; 
-      break;
-    case STATE_TURN_CCW_START: 
-      if (a && b)       { encoderState = STATE_TURN_CCW_MIDDLE; }
-      else if (!a && b) { encoderState = STATE_TURN_CCW_START; }
-      else if (a && !b) { encoderState = STATE_TURN_CCW_END; }
-      else              { encoderState = STATE_LOCKED; }; 
-      break;
-    case STATE_TURN_CCW_MIDDLE: 
-    case STATE_TURN_CCW_END: 
-      if (a && b)       { encoderState = STATE_TURN_CCW_MIDDLE; }
-      else if (!a && b) { encoderState = STATE_TURN_CCW_START; }
-      else if (a && !b) { encoderState = STATE_TURN_CCW_END; }
-      else              { encoderState = STATE_LOCKED; stepCCW(); }; 
-      break;
-    case STATE_UNDECIDED:
-      if (a && b)       { encoderState = STATE_UNDECIDED; }
-      else if (!a && b) { encoderState = STATE_TURN_CW_END; }
-      else if (a && !b) { encoderState = STATE_TURN_CCW_END; }
-      else              { encoderState = STATE_LOCKED; }; 
-      break;
-  }
-  if (!switchState && s) switchPress();
+  if(!switchState && s) switchPress();
   switchState = s;
 }
 
@@ -138,8 +77,29 @@ void runMotor(){
     stepper.run();
 }
 
+void setup()
+{
+  Serial.begin(115200);
+
+  pinMode(ENCODER_A_PIN, INPUT);
+  pinMode(ENCODER_B_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_A_PIN), readEncoder, CHANGE);
+
+  pinMode(SWITCH_PIN, INPUT);
+  pinMode(PEDAL_PIN, INPUT);
+
+  pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
+  pinMode(MOTOR_ENABLE_PIN, OUTPUT);
+  pinMode(MOTOR_STEP_PIN, OUTPUT);
+
+  stepper.setEnablePin(MOTOR_ENABLE_PIN);
+  stepper.setMaxSpeed(MOTOR_MAX_SPEED);
+  stepper.setAcceleration(MOTOR_ACCELERATION);
+  stepper.enableOutputs();
+}
+
 void loop() {
-  readEncoder();
+  readSwitch();
   readPedal();
   runMotor();
 }
