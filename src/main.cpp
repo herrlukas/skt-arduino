@@ -7,74 +7,75 @@
 
 uint8_t encoderState = 0;
 uint8_t switchState = 0;
-uint8_t timeSet = 0;
+uint8_t revs = 0;
 
 #define PEDAL_PIN 5
 uint8_t pedalState = 0;
 
 #define MOTOR_ENABLE_PIN 6
-#define MOTOR_DIRECTION_PIN 7 
+#define MOTOR_DIRECTION_PIN 7
 #define MOTOR_STEP_PIN 8
-#define MOTOR_MAX_SPEED 2000
+#define MOTOR_MAX_SPEED 800
 #define MOTOR_ACCELERATION 20000
 
-AccelStepper stepper(1,MOTOR_STEP_PIN,MOTOR_DIRECTION_PIN);
+AccelStepper stepper(1, MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
 
 void stepCW()
 {
-  if(timeSet < UINT8_MAX)
-    timeSet++;
-  Serial.print("Time set: ");
-  Serial.print(timeSet);
-  Serial.println("s");
+  if (revs < UINT8_MAX)
+    revs++;
+  Serial.print("Revolutions: ");
+  Serial.print(revs);
 }
 
 void stepCCW()
-{  
-   if(timeSet > 0)
-    timeSet--;
-  Serial.print("Time set: ");
-  Serial.print(timeSet);
-  Serial.println("s");
+{
+  if (revs > 0)
+    revs--;
+  Serial.print("Revolutions: ");
+  Serial.print(revs);
 }
 
 void switchPress()
 {
   Serial.println("- RESET -");
-  timeSet = 0;
+  revs = 0;
 }
 
-void pedalPress(){
+void pedalPress()
+{
   Serial.println("- PEDAL PRESS -");
-  stepper.disableOutputs();
   stepper.setCurrentPosition(0);
-  stepper.moveTo(MOTOR_MAX_SPEED * timeSet);
+  stepper.moveTo(200 * revs);
 }
 
-void readEncoder() {
-  if(digitalRead(ENCODER_A_PIN) != digitalRead(ENCODER_B_PIN))
+void readEncoder()
+{
+  if (digitalRead(ENCODER_A_PIN) != digitalRead(ENCODER_B_PIN))
     stepCW();
   else
-    stepCCW();  
+    stepCCW();
 }
 
-void readSwitch(){
+void readSwitch()
+{
   uint8_t s = digitalRead(SWITCH_PIN);
-  if(!switchState && s) switchPress();
+  if (!switchState && s)
+    switchPress();
   switchState = s;
 }
 
-void readPedal(){
+void readPedal()
+{
   uint8_t p = digitalRead(PEDAL_PIN);
-  if(!pedalState && p) pedalPress();
+  if (!pedalState && p)
+    pedalPress();
   pedalState = p;
 }
 
-void runMotor(){
-  if(stepper.currentPosition() == MOTOR_MAX_SPEED * timeSet)
-    stepper.enableOutputs();
-  else
-    stepper.run();
+void runMotor()
+{
+  stepper.run();
 }
 
 void setup()
@@ -95,10 +96,11 @@ void setup()
   stepper.setEnablePin(MOTOR_ENABLE_PIN);
   stepper.setMaxSpeed(MOTOR_MAX_SPEED);
   stepper.setAcceleration(MOTOR_ACCELERATION);
-  stepper.enableOutputs();
+  stepper.disableOutputs();
 }
 
-void loop() {
+void loop()
+{
   readSwitch();
   readPedal();
   runMotor();
