@@ -1,13 +1,15 @@
 #include <Arduino.h>
+#include <Encoder.h>
 #include <AccelStepper.h>
 
 #define ENCODER_A_PIN 2
 #define ENCODER_B_PIN 3
 #define SWITCH_PIN 4
 
-uint8_t encoderState = 0;
+long oldRevs = -999;
+uint8_t currRevs = 0;
 uint8_t switchState = 0;
-uint8_t revs = 0;
+Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
 
 #define PEDAL_PIN 5
 uint8_t pedalState = 0;
@@ -20,57 +22,46 @@ uint8_t pedalState = 0;
 
 AccelStepper stepper(1, MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
 
-void stepCW()
-{
-  if (revs < UINT8_MAX)
-    revs++;
-  Serial.print("Revolutions: ");
-  Serial.print(revs);
-}
-
-void stepCCW()
-{
-  if (revs > 0)
-    revs--;
-  Serial.print("Revolutions: ");
-  Serial.print(revs);
-}
-
-void switchPress()
-{
-  Serial.println("- RESET -");
-  revs = 0;
-}
-
-void pedalPress()
-{
-  Serial.println("- PEDAL PRESS -");
-  stepper.setCurrentPosition(0);
-  stepper.moveTo(200 * revs);
-}
-
 void readEncoder()
 {
-  if (digitalRead(ENCODER_A_PIN) != digitalRead(ENCODER_B_PIN))
-    stepCW();
-  else
-    stepCCW();
-}
-
-void readSwitch()
-{
-  uint8_t s = digitalRead(SWITCH_PIN);
-  if (!switchState && s)
-    switchPress();
-  switchState = s;
+  long newRevs = encoder.read();
+  if (newRevs != currRevs)
+  {
+    if (newRevs >= 0)
+    {
+      currRevs = newRevs;
+    }
+    else
+    {
+      encoder.write(0);
+    }
+    Serial.print("Revs: ");
+    Serial.println(currRevs);
+  }
 }
 
 void readPedal()
 {
   uint8_t p = digitalRead(PEDAL_PIN);
   if (!pedalState && p)
-    pedalPress();
+  {
+    Serial.println("- PEDAL PRESS -");
+    stepper.setCurrentPosition(0);
+    stepper.moveTo(200 * currRevs);
+  }
   pedalState = p;
+}
+
+void readSwitch()
+{
+  uint8_t s = digitalRead(SWITCH_PIN);
+  if (!switchState && s)
+  {
+    Serial.println("- RESET -");
+    encoder.write(0);
+    currRevs = 0;
+  }
+  switchState = s;
 }
 
 void runMotor()
@@ -82,10 +73,6 @@ void setup()
 {
   Serial.begin(115200);
 
-  pinMode(ENCODER_A_PIN, INPUT);
-  pinMode(ENCODER_B_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_A_PIN), readEncoder, CHANGE);
-
   pinMode(SWITCH_PIN, INPUT);
   pinMode(PEDAL_PIN, INPUT);
 
@@ -96,12 +83,14 @@ void setup()
   stepper.setEnablePin(MOTOR_ENABLE_PIN);
   stepper.setMaxSpeed(MOTOR_MAX_SPEED);
   stepper.setAcceleration(MOTOR_ACCELERATION);
-  stepper.disableOutputs();
+  stepper.enableOutputs();
 }
 
 void loop()
 {
-  readSwitch();
+  readEncoder();
   readPedal();
+  readSwitch();
+
   runMotor();
 }
