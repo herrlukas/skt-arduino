@@ -6,37 +6,40 @@
 #define ENCODER_B_PIN 3
 #define SWITCH_PIN 4
 
-long oldRevs = -999;
-uint8_t currRevs = 0;
+uint8_t currPos = 0;
 uint8_t switchState = 0;
 Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
 
 #define PEDAL_PIN 5
 uint8_t pedalState = 0;
 
-#define MOTOR_ENABLE_PIN 6
-#define MOTOR_DIRECTION_PIN 7
-#define MOTOR_STEP_PIN 8
+#define MOTOR_ENABLE_PIN 13
+#define MOTOR_DIRECTION_PIN 11
+#define MOTOR_STEP_PIN 12
 #define MOTOR_MAX_SPEED 800
 #define MOTOR_ACCELERATION 20000
+uint8_t revs = 0;
 
 AccelStepper stepper(1, MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
 
 void readEncoder()
 {
-  long newRevs = encoder.read();
-  if (newRevs != currRevs)
+  long newPos = encoder.read();
+  if (newPos != currPos)
   {
-    if (newRevs >= 0)
+    if (newPos <= 0)
     {
-      currRevs = newRevs;
-    }
-    else
-    {
+      currPos = 0;
+      revs = 0;
       encoder.write(0);
     }
+    else if (newPos % 2 == 0)
+    {
+      currPos = newPos;
+      revs = currPos / 2;
+    }
     Serial.print("Revs: ");
-    Serial.println(currRevs);
+    Serial.println(revs);
   }
 }
 
@@ -47,7 +50,7 @@ void readPedal()
   {
     Serial.println("- PEDAL PRESS -");
     stepper.setCurrentPosition(0);
-    stepper.moveTo(200 * currRevs);
+    stepper.moveTo(200 * revs);
   }
   pedalState = p;
 }
@@ -59,7 +62,8 @@ void readSwitch()
   {
     Serial.println("- RESET -");
     encoder.write(0);
-    currRevs = 0;
+    currPos = 0;
+    revs = 0;
   }
   switchState = s;
 }
