@@ -350,6 +350,9 @@ void loop()
   readPedal();
 
   runMotor();
-
-  drawMenu();
+ 
+  if (stepper.isRunning() == false)
+  {
+    drawMenu();
+  }
 }
