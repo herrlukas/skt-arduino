@@ -1,3 +1,26 @@
+/*****************************************************************************/
+/*!
+  @file main.cpp
+
+  @mainpage The SkeinTwister Arduino project
+
+  @section intro Introduction
+
+  PlatformIO project for SkeinTwister
+
+  @section author Author
+
+  Written by Herr Lukas for the SkeinTwister Arduino project.
+
+  @section license License
+
+  MIT License, check license.txt for more information
+  All text above, and the splash screen below must be included in any
+  redistribution
+*/
+/*****************************************************************************/
+
+/* Library includes */
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -6,28 +29,37 @@
 #include <Encoder.h>
 #include <AccelStepper.h>
 
+/* Rotary encoder definition */
 #define ENCODER_A_PIN 2
 #define ENCODER_B_PIN 3
 #define MIDDLE_PIN 4
+Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
 
 int32_t currPos = 0;
 int switchState = 0;
-Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
 
+/* Pedal definition */
 #define PEDAL_PIN 10
 int pedalState = 0;
 
+/* Stepper motor definition */
 #define MOTOR_ENABLE_PIN 13
 #define MOTOR_DIRECTION_PIN 11
 #define MOTOR_STEP_PIN 12
+AccelStepper stepper(1, MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
+
 int speed = 800;
 int acceleration = 20000;
 int revs = 0;
 bool calibration = 0;
 
-AccelStepper stepper(1, MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
-
-Adafruit_PCD8544 display = Adafruit_PCD8544(5, 6, 7, 9, 8);
+/* Display definition */
+#define SCLK_PIN 5
+#define DIN_PIN 6
+#define DC_PIN 7
+#define CS_PIN 9
+#define RST_PIN 8
+Adafruit_PCD8544 display = Adafruit_PCD8544(SCLK_PIN, DIN_PIN, DC_PIN, CS_PIN, RST_PIN);
 
 int selectedMenuItem = 1;
 int selectedFrame = 1;
@@ -218,7 +250,8 @@ void drawIntMenuItem(String menuItem, int value)
   display.display();
 }
 
-void drawBoolMenuItem(String menuItem, bool value)
+void drawBoolMenuItem(String menuItem, bool value,
+                      String trueValue, String falseValue)
 {
   display.setTextSize(1);
   display.clearDisplay();
@@ -232,11 +265,11 @@ void drawBoolMenuItem(String menuItem, bool value)
   display.setCursor(5, 25);
   if (value)
   {
-    display.print("ON");
+    display.print(trueValue);
   }
   else
   {
-    display.print("OFF");
+    display.print(falseValue);
   }
   display.setTextSize(2);
   display.display();
@@ -315,7 +348,7 @@ void drawMenu()
     }
     if (selectedMenuItem == 4)
     {
-      drawBoolMenuItem(menuItem4, calibration);
+      drawBoolMenuItem(menuItem4, calibration, "ON", "OFF");
     }
   }
 }
