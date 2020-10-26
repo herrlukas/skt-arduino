@@ -8,14 +8,14 @@
 
 #define ENCODER_A_PIN 2
 #define ENCODER_B_PIN 3
-#define SWITCH_PIN 4
+#define MIDDLE_PIN 4
 
-long currPos = 0;
-uint8_t switchState = 0;
+int32_t currPos = 0;
+int switchState = 0;
 Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN);
 
 #define PEDAL_PIN 10
-uint8_t pedalState = 0;
+int pedalState = 0;
 
 #define MOTOR_ENABLE_PIN 13
 #define MOTOR_DIRECTION_PIN 11
@@ -46,7 +46,7 @@ String menuItem4 = "Calibrate";
 
 void readEncoder()
 {
-  long newPos = encoder.read();
+  int32_t newPos = encoder.read();
   if (newPos / 2 > currPos)
   {
     currPos = newPos / 2;
@@ -58,13 +58,27 @@ void readEncoder()
     up = true;
   }
 
-  uint8_t s = digitalRead(SWITCH_PIN);
+  int s = digitalRead(MIDDLE_PIN);
   if (!switchState && s)
   {
     middle = true;
   }
   switchState = s;
+}
 
+void readPedal()
+{
+  int p = digitalRead(PEDAL_PIN);
+  if (!pedalState && p)
+  {
+    stepper.setCurrentPosition(0);
+    stepper.moveTo(200 * revs);
+  }
+  pedalState = p;
+}
+
+void processInput()
+{
   if (up && selectedPage == 1)
   {
 
@@ -171,23 +185,6 @@ void readEncoder()
       selectedPage = 1;
     }
   }
-}
-
-void readPedal()
-{
-  uint8_t p = digitalRead(PEDAL_PIN);
-  if (!pedalState && p)
-  {
-    Serial.println("- PEDAL PRESS -");
-    stepper.setCurrentPosition(0);
-    stepper.moveTo(200 * revs);
-  }
-  pedalState = p;
-}
-
-void runMotor()
-{
-  stepper.run();
 }
 
 void drawMenuItem(String item, int position, boolean selected)
@@ -327,7 +324,7 @@ void setup()
 {
   Serial.begin(115200);
 
-  pinMode(SWITCH_PIN, INPUT);
+  pinMode(MIDDLE_PIN, INPUT);
   pinMode(PEDAL_PIN, INPUT);
 
   pinMode(MOTOR_DIRECTION_PIN, OUTPUT);
@@ -346,13 +343,17 @@ void setup()
 
 void loop()
 {
-  readEncoder();
-  readPedal();
-
-  runMotor();
- 
   if (stepper.isRunning() == false)
   {
+    readEncoder();
+    readPedal();
+  }
+
+  if (down || up || middle)
+  {
+    processInput();
     drawMenu();
   }
+
+  stepper.run();
 }
